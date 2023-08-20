@@ -8,8 +8,6 @@
 #include <optional>
 #include <algorithm>
 
-//#include <iostream>
-
 using namespace Constants;
 
 // Utilities
@@ -22,7 +20,7 @@ void SetCrumb(RepType& of, const size_t at, const CellState to) {
 }
 
 CellState GetState(const RepType& of, const size_t at) {
-	if (!of.test(at * 2 + 1)) 
+	if (!of.test(at * 2 + 1))
 		return CellState::EMPTY;
 	return of.test(at * 2) ? CellState::RED : CellState::BLUE;
 }
@@ -50,20 +48,30 @@ Board::Board(const std::string_view input) {
 }
 
 bool Board::BlueWin() const {
-	return std::any_of(FivesBegin(), FivesEnd(), [](const auto value) -> bool {
+	auto hasBlueWin = [](const auto value) -> bool {
 		return value == -5;
-	});
+	};
+
+	return std::any_of(HorizontalFivesBegin(), HorizontalFivesEnd(), hasBlueWin) 
+		|| std::any_of(VerticalFivesBegin(), VerticalFivesEnd(), hasBlueWin)
+		|| std::any_of(SoutheastFivesBegin(), SoutheastFivesEnd(), hasBlueWin)
+		|| std::any_of(SouthwestFivesBegin(), SouthwestFivesEnd(), hasBlueWin);
 }
 
 bool Board::RedWin() const {
-	return std::any_of(FivesBegin(), FivesEnd(), [](const auto value) -> bool {
+	auto hasRedWin = [](const auto value) -> bool {
 		return value == 5;
-	});
+	};
+
+	return std::any_of(HorizontalFivesBegin(), HorizontalFivesEnd(), hasRedWin)
+		|| std::any_of(VerticalFivesBegin(), VerticalFivesEnd(), hasRedWin)
+		|| std::any_of(SoutheastFivesBegin(), SoutheastFivesEnd(), hasRedWin)
+		|| std::any_of(SouthwestFivesBegin(), SouthwestFivesEnd(), hasRedWin);
 }
 
 CellState Board::At(const size_t x, const size_t y) const {
 	/*if (x >= BOARD_WIDTH) {
-		throw std::runtime_error(std::format("Bad Board::At call: argument x = {} was not within BOARD_WIDTH = {}.", 
+		throw std::runtime_error(std::format("Bad Board::At call: argument x = {} was not within BOARD_WIDTH = {}.",
 			x, BOARD_WIDTH));
 	}
 	if (y >= BOARD_HEIGHT) {
@@ -95,6 +103,25 @@ Board Board::Play(const size_t x, const size_t y, const bool blue) const {
 
 Board Board::Play(const std::pair<size_t, size_t> pos, const bool blue) const {
 	return Play(pos.first, pos.second, blue);
+}
+
+Board Board::Reset(const size_t x, const size_t y) const {
+	if (x >= BOARD_WIDTH) {
+		throw std::runtime_error(std::format("Bad Board::Play call: argument x = {} was not within BOARD_WIDTH = {}.",
+			x, BOARD_WIDTH));
+	}
+	if (y >= BOARD_HEIGHT) {
+		throw std::runtime_error(std::format("Bad Board::Play call: argument y = {} was not within BOARD_HEIGHT = {}.",
+			y, BOARD_HEIGHT));
+	}
+
+	Board b = *this;
+	SetCrumb(b.cells, y * BOARD_WIDTH + x, CellState::EMPTY);
+	return b;
+}
+
+Board Board::Reset(const std::pair<size_t, size_t> pos) const {
+	return Reset(pos.first, pos.second);
 }
 
 Board Board::Play(const EmptyIterator& cell, const bool blue) const {
@@ -265,7 +292,7 @@ int8_t Board::FivesIterator::operator*() const {
 
 	int8_t count{};
 	for (int i = 0; i < 5; ++i) {
-		auto state = board.At(static_cast<size_t>(headX + i * ((tailX - headX) / 4)), 
+		auto state = board.At(static_cast<size_t>(headX + i * ((tailX - headX) / 4)),
 			static_cast<size_t>(headY + i * ((tailY - headY) / 4)));
 		if (state == CellState::BLUE) {
 			if (count > 0) return 0;
@@ -284,20 +311,14 @@ Board::FivesIterator& Board::FivesIterator::operator++() {
 	if (*this == board.FivesEnd()) {
 		throw std::runtime_error("Cannot iterate past end.");
 	}
-	
+
 	const auto headX = head % BOARD_WIDTH;
 	const auto headY = head / BOARD_WIDTH;
 	const auto tailX = tail % BOARD_WIDTH;
 	const auto tailY = tail / BOARD_WIDTH;
 
-	static size_t horizontal{};
-	static size_t vertical{};
-	static size_t diagonalSE{};
-	static size_t diagonalSW{};
-
 	// Horizontal
 	if (headY == tailY) {
-		++horizontal;
 		// Can we move right?
 		if (tailX + 1 < BOARD_WIDTH) {
 			++head;
@@ -316,7 +337,6 @@ Board::FivesIterator& Board::FivesIterator::operator++() {
 	}
 	// Vertical
 	else if (headX == tailX) {
-		++vertical;
 		// Can we move right or down?
 		if (tail + 1 < BOARD_WIDTH * BOARD_HEIGHT) {
 			++head;
@@ -330,7 +350,6 @@ Board::FivesIterator& Board::FivesIterator::operator++() {
 	}
 	// Diagonal Southeast
 	else if (headX < tailX) {
-		++diagonalSE;
 		// Can we move right?
 		if (tailX + 1 < BOARD_WIDTH) {
 			++head;
@@ -349,7 +368,6 @@ Board::FivesIterator& Board::FivesIterator::operator++() {
 	}
 	// Diagonal Southwest (only possibility)
 	else {
-		++diagonalSW;
 		if (headX + 1 < BOARD_WIDTH) {
 			++head;
 			++tail;
@@ -384,6 +402,157 @@ std::pair<std::pair<size_t, size_t>, std::pair<size_t, size_t>> Board::FivesIter
 Board::FivesIterator::FivesIterator(const size_t head, const size_t tail, const Board& board) :
 	head(head), tail(tail), board(board) {}
 
+// "Fives" iterator derefs
+
+int8_t Board::HorizontalFivesIterator::operator*() const {
+	int8_t count{};
+	for (size_t i = 0; i < 5; ++i) {
+		auto state = GetState(board->cells, cursor + i);
+		if ((state == CellState::BLUE && count > 0) ||
+			(state == CellState::RED && count < 0)) {
+			return 0;
+		}
+		count += (state == CellState::RED);
+		count -= (state == CellState::BLUE);
+	}
+	return count;
+}
+
+int8_t Board::VerticalFivesIterator::operator*() const {
+	int8_t count{};
+	for (size_t i = 0; i < 5; ++i) {
+		auto state = GetState(board->cells, cursor + i * BOARD_WIDTH);
+		if ((state == CellState::BLUE && count > 0) ||
+			(state == CellState::RED && count < 0)) {
+			return 0;
+		}
+		count += (state == CellState::RED);
+		count -= (state == CellState::BLUE);
+	}
+	return count;
+}
+
+int8_t Board::SoutheastFivesIterator::operator*() const {
+	int8_t count{};
+	for (size_t i = 0; i < 5; ++i) {
+		auto state = GetState(board->cells, cursor + i * BOARD_WIDTH + i);
+		if ((state == CellState::BLUE && count > 0) ||
+			(state == CellState::RED && count < 0)) {
+			return 0;
+		}
+		count += (state == CellState::RED);
+		count -= (state == CellState::BLUE);
+	}
+	return count;
+}
+
+int8_t Board::SouthwestFivesIterator::operator*() const {
+	int8_t count{};
+	for (size_t i = 0; i < 5; ++i) {
+		auto state = GetState(board->cells, cursor + i * BOARD_WIDTH - i);
+		if ((state == CellState::BLUE && count > 0) ||
+			(state == CellState::RED && count < 0)) {
+			return 0;
+		}
+		count += (state == CellState::RED);
+		count -= (state == CellState::BLUE);
+	}
+	return count;
+}
+
+// "Fives" iterator increments
+
+Board::HorizontalFivesIterator& Board::HorizontalFivesIterator::operator++() {
+	if (cursor % BOARD_WIDTH < BOARD_WIDTH - 5) {
+		++cursor;
+	}
+	else {
+		cursor += 5;
+	}
+	return *this;
+}
+
+Board::VerticalFivesIterator& Board::VerticalFivesIterator::operator++() {
+	++cursor;
+	return *this;
+}
+
+Board::SoutheastFivesIterator& Board::SoutheastFivesIterator::operator++() {
+	if (cursor % BOARD_WIDTH < BOARD_WIDTH - 5) {
+		++cursor;
+	}
+	else {
+		cursor += 5;
+	}
+	return *this;
+}
+
+Board::SouthwestFivesIterator& Board::SouthwestFivesIterator::operator++() {
+	if (cursor % BOARD_WIDTH + 1 < BOARD_WIDTH) {
+		++cursor;
+	}
+	else {
+		cursor += 5;
+	}
+	return *this;
+}
+
+Board::HorizontalFivesIterator Board::HorizontalFivesIterator::operator++(int) {
+	HorizontalFivesIterator it = *this;
+	++*this;
+	return it;
+}
+
+Board::VerticalFivesIterator Board::VerticalFivesIterator::operator++(int) {
+	VerticalFivesIterator it = *this;
+	++*this;
+	return it;
+}
+
+Board::SoutheastFivesIterator Board::SoutheastFivesIterator::operator++(int) {
+	SoutheastFivesIterator it = *this;
+	++*this;
+	return it;
+}
+
+Board::SouthwestFivesIterator Board::SouthwestFivesIterator::operator++(int) {
+	SouthwestFivesIterator it = *this;
+	++*this;
+	return it;
+}
+
+// "Fives" iterator equality
+
+bool Board::HorizontalFivesIterator::operator==(const HorizontalFivesIterator& rhs) const {
+	return board == rhs.board && cursor == rhs.cursor;
+}
+
+bool Board::VerticalFivesIterator::operator==(const VerticalFivesIterator& rhs) const {
+	return board == rhs.board && cursor == rhs.cursor;
+}
+
+bool Board::SoutheastFivesIterator::operator==(const SoutheastFivesIterator& rhs) const {
+	return board == rhs.board && cursor == rhs.cursor;
+}
+
+bool Board::SouthwestFivesIterator::operator==(const SouthwestFivesIterator& rhs) const {
+	return board == rhs.board && cursor == rhs.cursor;
+}
+
+// "Fives" iterator constructors
+
+Board::HorizontalFivesIterator::HorizontalFivesIterator(const size_t cursor, const Board* board) :
+	cursor(cursor), board(board) {}
+
+Board::VerticalFivesIterator::VerticalFivesIterator(const size_t cursor, const Board* board) :
+	cursor(cursor), board(board) {}
+
+Board::SoutheastFivesIterator::SoutheastFivesIterator(const size_t cursor, const Board* board) :
+	cursor(cursor), board(board) {}
+
+Board::SouthwestFivesIterator::SouthwestFivesIterator(const size_t cursor, const Board* board) :
+	cursor(cursor), board(board) {}
+
 Board::AllIterator Board::AllBegin() const {
 	return AllIterator{ 0, *this };
 }
@@ -405,6 +574,9 @@ Board::EmptyIterator Board::EmptyEnd() const {
 }
 
 Board::InRangeIterator Board::InRangeBegin() const {
+	if (!cells.any()) {
+		return InRangeIterator(BOARD_WIDTH * BOARD_WIDTH / 2, this);
+	}
 	InRangeIterator it(0, this);
 	if (!it.Valid()) {
 		++it;
@@ -416,10 +588,38 @@ Board::InRangeIterator Board::InRangeEnd() const {
 	return InRangeIterator{ BOARD_WIDTH * BOARD_HEIGHT, this };
 }
 
-
-
 Board::FivesIterator Board::FivesEnd() const {
 	return FivesIterator{ BOARD_WIDTH * BOARD_HEIGHT, BOARD_WIDTH * BOARD_HEIGHT, *this };
 }
 
+Board::HorizontalFivesIterator Board::HorizontalFivesBegin() const {
+	return HorizontalFivesIterator(0, this);
+}
 
+Board::HorizontalFivesIterator Board::HorizontalFivesEnd() const {
+	return HorizontalFivesIterator(BOARD_WIDTH * BOARD_HEIGHT, this);
+}
+
+Board::VerticalFivesIterator Board::VerticalFivesBegin() const {
+	return VerticalFivesIterator(0, this);
+}
+
+Board::VerticalFivesIterator Board::VerticalFivesEnd() const {
+	return VerticalFivesIterator(BOARD_WIDTH * (BOARD_HEIGHT - 4), this);
+}
+
+Board::SoutheastFivesIterator Board::SoutheastFivesBegin() const {
+	return SoutheastFivesIterator(0, this);
+}
+
+Board::SoutheastFivesIterator Board::SoutheastFivesEnd() const {
+	return SoutheastFivesIterator(BOARD_WIDTH * (BOARD_HEIGHT - 4), this);
+}
+
+Board::SouthwestFivesIterator Board::SouthwestFivesBegin() const {
+	return SouthwestFivesIterator(4, this);
+}
+
+Board::SouthwestFivesIterator Board::SouthwestFivesEnd() const {
+	return SouthwestFivesIterator(BOARD_WIDTH * (BOARD_HEIGHT - 4) + 4, this);
+}

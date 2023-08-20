@@ -11,6 +11,8 @@ public:
 
 	bool ShouldClose() const noexcept;
 	bool ResetPressed() const noexcept;
+	bool UndoPressed() const noexcept;
+	bool HelpPressed() const noexcept;
 	bool Clicked() const noexcept;
 	void SetTitle(const char* to);
 	std::pair<double, double> CursorPosition() const;

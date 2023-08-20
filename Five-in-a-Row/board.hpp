@@ -8,7 +8,6 @@
 #include <string_view>
 #include <bitset>
 #include <utility>
-//#include <concepts>
 
 enum class CellState { EMPTY, BLUE, RED };
 
@@ -27,6 +26,8 @@ public:
 	Board Play(const size_t x, const size_t y, const bool blue) const;
 	Board Play(const std::pair<size_t, size_t> pos, const bool blue) const;
 
+	Board Reset(const size_t x, const size_t y) const;
+	Board Reset(const std::pair<size_t, size_t> pos) const;
 
 	class EmptyIterator;
 	class InRangeIterator;
@@ -83,20 +84,59 @@ public:
 		const Board* board;
 	};
 
-	class FivesIterator {
+	class HorizontalFivesIterator {
 	public:
 		// 0 if empty or containing both colors. If positive, how many red pieces the five contains, if negative the equivalent for blue.
 		int8_t operator*() const;
-		FivesIterator& operator++();
-		FivesIterator operator++(int);
-		bool operator==(const FivesIterator& rhs) const;
-		std::pair<std::pair<size_t, size_t>, std::pair<size_t, size_t>> Positions() const;
+		HorizontalFivesIterator& operator++();
+		HorizontalFivesIterator operator++(int);
+		bool operator==(const HorizontalFivesIterator& rhs) const;
 	private:
-		size_t head;
-		size_t tail;
+		size_t cursor;
 		friend class Board;
-		FivesIterator(const size_t head, const size_t tail, const Board& board);
-		const Board& board;
+		HorizontalFivesIterator(const size_t cursor, const Board* board);
+		const Board* board;
+	};
+
+	class VerticalFivesIterator {
+	public:
+		int8_t operator*() const;
+		VerticalFivesIterator& operator++();
+		VerticalFivesIterator operator++(int);
+		bool operator==(const VerticalFivesIterator& rhs) const;
+	private:
+		size_t cursor;
+		friend class Board;
+		VerticalFivesIterator(const size_t cursor, const Board* board);
+		const Board* board;
+	};
+
+	class SoutheastFivesIterator {
+	public:
+		// 0 if empty or containing both colors. If positive, how many red pieces the five contains, if negative the equivalent for blue.
+		int8_t operator*() const;
+		SoutheastFivesIterator& operator++();
+		SoutheastFivesIterator operator++(int);
+		bool operator==(const SoutheastFivesIterator& rhs) const;
+	private:
+		size_t cursor;
+		friend class Board;
+		SoutheastFivesIterator(const size_t cursor, const Board* board);
+		const Board* board;
+	};
+
+	class SouthwestFivesIterator {
+	public:
+		// 0 if empty or containing both colors. If positive, how many red pieces the five contains, if negative the equivalent for blue.
+		int8_t operator*() const;
+		SouthwestFivesIterator& operator++();
+		SouthwestFivesIterator operator++(int);
+		bool operator==(const SouthwestFivesIterator& rhs) const;
+	private:
+		size_t cursor;
+		friend class Board;
+		SouthwestFivesIterator(const size_t cursor, const Board* board);
+		const Board* board;
 	};
 
 	AllIterator AllBegin() const;
@@ -105,9 +145,16 @@ public:
 	EmptyIterator EmptyEnd() const;
 	InRangeIterator InRangeBegin() const;
 	InRangeIterator InRangeEnd() const;
-	template <size_t pos = 0>
-	FivesIterator FivesBegin() const;
-	FivesIterator FivesEnd() const;
+
+	HorizontalFivesIterator HorizontalFivesBegin() const;
+	HorizontalFivesIterator HorizontalFivesEnd() const;
+	VerticalFivesIterator VerticalFivesBegin() const;
+	VerticalFivesIterator VerticalFivesEnd() const;
+	SoutheastFivesIterator SoutheastFivesBegin() const;
+	SoutheastFivesIterator SoutheastFivesEnd() const;
+	SouthwestFivesIterator SouthwestFivesBegin() const;
+	SouthwestFivesIterator SouthwestFivesEnd() const;
+
 
 private:
 	// The underlying board state representation 

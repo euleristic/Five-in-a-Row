@@ -15,7 +15,8 @@ public:
 	Renderer();
 	~Renderer() noexcept;
 
-	void Draw(Window& window, const Board& board, const bool drawSelected);
+	void Draw(Window& window, const Board& board, const bool drawSelected, 
+		const std::optional<std::pair<size_t, size_t>> lastMove);
 
 	// Renderer cannot be copied
 	Renderer(const Renderer&) = delete;

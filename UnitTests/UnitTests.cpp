@@ -300,7 +300,8 @@ namespace UnitTests {
 
 			Assert::AreEqual(full.InRangeBegin(), full.InRangeEnd());
 
-			Assert::AreEqual(static_cast<size_t>(0), Board().InRangeBegin().Position().first);
+			Assert::AreEqual(std::make_pair(BOARD_WIDTH / 2, BOARD_HEIGHT / 2), 
+				Board().InRangeBegin().Position());
 		}
 
 		TEST_METHOD(BoardPlay) {
@@ -524,7 +525,7 @@ namespace UnitTests {
 				"***************" +
 				"***************" +
 				"***************");
-			
+
 			Board blueWin(std::string() +
 				"BBBBB**********" +
 				"***************" +
@@ -598,102 +599,6 @@ namespace UnitTests {
 
 			constexpr Minimax<2, true, SimpleGoal> Test3{};
 
-			Assert::AreEqual(-1.0f, Test3(fourBsInARow), L"Test3: Red should see that blue wins.");			
-		}
-
-		TEST_METHOD(AlphaBetaPruning) {
-			// This test is the same as for minimax, with alpha-beta pruning enabled
-
-			Board redWin(std::string() +
-				"R**************" +
-				"R**************" +
-				"R**************" +
-				"R**************" +
-				"R**************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			Board blueWin(std::string() +
-				"BBBBB**********" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			Board redWinsInOne(std::string() +
-				"R**************" +
-				"*R*************" +
-				"**R************" +
-				"***R***********" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			// Testing base case with SimpleGoal
-
-			constexpr Minimax<0, true, SimpleGoal, true> Test0{};
-
-			Assert::AreEqual(1.0f, Test0(redWin), L"Test0: redWin");
-			Assert::AreEqual(-1.0f, Test0(blueWin), L"Test0: blueWin");
-			Assert::AreEqual(0.0f, Test0(redWinsInOne), L"Test0: redWinsInOne");
-
-			// Testing ply depth of 1
-
-			constexpr Minimax<1, true, SimpleGoal, true> Test1{};
-
-			Assert::AreEqual(1.0f, Test1(redWinsInOne), L"Test1: Red should see a win.");
-
-			// Testing ply depth of 2
-
-			constexpr Minimax<2, false, SimpleGoal, true> Test2{};
-
-			Assert::AreEqual(0.0f, Test2(redWinsInOne), L"Test2: Blue should see the block.");
-
-			Board fourBsInARow(std::string() +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"******BBBB*****" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			constexpr Minimax<2, true, SimpleGoal, true> Test3{};
-
 			Assert::AreEqual(-1.0f, Test3(fourBsInARow), L"Test3: Red should see that blue wins.");
 
 			Board threeRsInARow(std::string() +
@@ -713,8 +618,8 @@ namespace UnitTests {
 				"***************" +
 				"***************");
 
-			constexpr Minimax<3, true, SimpleGoal, true> Test4{};
-			constexpr Minimax<4, false, SimpleGoal, true> Test5{};
+			constexpr Minimax<3, true, SimpleGoal> Test4{};
+			constexpr Minimax<4, false, SimpleGoal> Test5{};
 			Assert::AreEqual(1.0f, Test4(threeRsInARow), L"Test4: Red should see a win");
 			Assert::AreEqual(0.0f, Test5(threeRsInARow), L"Test5: Blue should see two blocks.");
 		}
@@ -741,13 +646,13 @@ namespace UnitTests {
 				"***************" +
 				"***************");
 
-			constexpr Minimax<1, true, SimpleGoal, false, true> Test0{};
-			constexpr Minimax<1, true, SimpleGoal, true, true> Test1{};
+			constexpr Minimax<1, true, SimpleGoal, true> Test0{};
+			constexpr Minimax<1, true, SimpleGoal, true> Test1{};
 			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test0(redWinsInOne).Position(), L"Test0");
 			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test1(redWinsInOne).Position(), L"Test1");
 
-			constexpr Minimax<2, false, SimpleGoal, false, true> Test2{};
-			constexpr Minimax<2, false, SimpleGoal, true, true> Test3{};
+			constexpr Minimax<2, false, SimpleGoal, true> Test2{};
+			constexpr Minimax<2, false, SimpleGoal, true> Test3{};
 			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test2(redWinsInOne).Position(), L"Test2");
 			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test3(redWinsInOne).Position(), L"Test3");
 
@@ -768,70 +673,11 @@ namespace UnitTests {
 				"***************" +
 				"***************");
 
-			constexpr Minimax<3, true, SimpleGoal, true, true> Test4{};
+			constexpr Minimax<3, true, SimpleGoal, true> Test4{};
 			auto result = Test4(threeRsInARow);
 			Assert::IsTrue(std::make_pair<size_t, size_t>(4, 13) == result.Position() ||
 				std::make_pair<size_t, size_t>(8, 9) == result.Position(),
 				L"Test4: Red should see a win");
-		}
-
-		TEST_METHOD(RealSituations) {
-			Board b1(std::string() +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"*********R*****" +
-				"****B**RB******" +
-				"*****BRBR******" +
-				"****RBBBR******" +
-				"*****RBBBR*****" +
-				"******BRR******" +
-				"******B********" +
-				"******R********" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			Board b2(std::string() +
-				"***************" +
-				"***************" +
-				"***************" +
-				"**R************" +
-				"***R*****R*****" +
-				"****B**RB******" +
-				"*****BRBR******" +
-				"****RBBBRB*****" +
-				"***BBRBBBRBBBB*" +
-				"****RBBRRBR****" +
-				"****RRBBBRRR***" +
-				"******RRRB*****" +
-				"*******R*******" +
-				"********B******" +
-				"***************");
-
-			Board b3(std::string() +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***B*R**RR*B***" +
-				"****R**RBRB****" +
-				"*****RBBBBRB***" +
-				"******RBBBRB***" +
-				"*******RRB*****" +
-				"********BRR****" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			constexpr Minimax<4, true, GoalFunction, true, true> Goal{};
-			Assert::AreEqual(std::make_pair<size_t, size_t>(3, 4), Goal(b1).Position(), L"Test: Red should block.");
-			Assert::IsTrue(b2.Play(Goal(b2), false).RedWin(), L"Test: Red should win.");
-			Assert::AreEqual(std::make_pair<size_t, size_t>(12, 4), Goal(b3).Position(), L"Test: Red should block.");
-
 		}
 
 		TEST_METHOD(GoalFunctionBehavior) {
@@ -889,8 +735,77 @@ namespace UnitTests {
 				"****B**********" +		//
 				"***B***********");		//
 
-			float score = GoalFunction(b);
-			Assert::IsTrue(fabsf(-215 - score) < EPSILON, std::format(L"Expected: <{}>. Actual: <{}>", -174, score).c_str());
+			float actual = GoalFunction(b);
+			float expected = 40 * SCORE_MAP[0] +
+				3 * SCORE_MAP[1] +
+				132 * -SCORE_MAP[0] +
+				11 * -SCORE_MAP[1] + 
+				3 * -SCORE_MAP[2] + 
+				4 * -SCORE_MAP[3];
+			Assert::IsTrue(fabsf(expected - actual) < EPSILON, std::format(L"Expected: <{}>. Actual: <{}>", expected, actual).c_str());
+		}
+
+		TEST_METHOD(RealSituations) {
+			Board b1(std::string() +
+				"***************" +
+				"***************" +
+				"***************" +
+				"***************" +
+				"*********R*****" +
+				"****B**RB******" +
+				"*****BRBR******" +
+				"****RBBBR******" +
+				"*****RBBBR*****" +
+				"******BRR******" +
+				"******B********" +
+				"******R********" +
+				"***************" +
+				"***************" +
+				"***************");
+
+			Board b2(std::string() +
+				"***************" +
+				"***************" +
+				"***************" +
+				"**R************" +
+				"***R*****R*****" +
+				"****B**RB******" +
+				"*****BRBR******" +
+				"****RBBBRB*****" +
+				"***BBRBBBRBBBB*" +
+				"****RBBRRBR****" +
+				"****RRBBBRRR***" +
+				"******RRRB*****" +
+				"*******R*******" +
+				"********B******" +
+				"***************");
+
+			Board b3(std::string() +
+				"***************" +
+				"***************" +
+				"***************" +
+				"***************" +
+				"***************" +
+				"***B*R**RR*B***" +
+				"****R**RBRB****" +
+				"*****RBBBBRB***" +
+				"******RBBBRB***" +
+				"*******RRB*****" +
+				"********BRR****" +
+				"***************" +
+				"***************" +
+				"***************" +
+				"***************");
+
+			constexpr Minimax<4, true, GoalFunction, true> Goal{};
+			Assert::AreEqual(std::make_pair<size_t, size_t>(3, 4), Goal(b1).Position(), L"Test: Red should block.");
+			Assert::IsTrue(b2.Play(Goal(b2), false).RedWin(), L"Test: Red should win.");
+			Assert::AreEqual(std::make_pair<size_t, size_t>(12, 4), Goal(b3).Position(), L"Test: Red should block.");
+		}
+
+		TEST_METHOD(ZZZDestructor) {
+			// Please tell me how to do this better
+			GoalFunctionThreadPool::Kill();
 		}
 	};
 }

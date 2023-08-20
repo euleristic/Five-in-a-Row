@@ -43,7 +43,8 @@ Renderer::~Renderer() noexcept {
 	glDeleteVertexArrays(1, &normalSquareVAO);
 }
 
-void Renderer::Draw(Window& window, const Board& board, const bool drawSelected) {
+void Renderer::Draw(Window& window, const Board& board, const bool drawSelected,
+	const std::optional<std::pair<size_t, size_t>> lastMove) {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -64,8 +65,7 @@ void Renderer::Draw(Window& window, const Board& board, const bool drawSelected)
 				1.0f / static_cast<float>(BOARD_HEIGHT) - // initial offset
 				static_cast<float>(j) * 2.0f / static_cast<float>(BOARD_HEIGHT); // additional offset per j
 
-			const auto color = (drawSelected && selected != board.EmptyEnd() 
-				&& selected.Position().first == i && selected.Position().second == j) ? 
+			const auto color = (lastMove && lastMove->first == i && lastMove->second == j) ?
 				glm::vec4(0.8f, 0.8f, 0.8f, 1.0f) : glm::vec4(1.0f);
 
 			rectShader.Run(transform, color);
@@ -85,10 +85,24 @@ void Renderer::Draw(Window& window, const Board& board, const bool drawSelected)
 				color = state == CellState::BLUE ? glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)
 					: glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 				circleShader.Run(transform, color);
+
 			}
+			else if (drawSelected && selected != board.EmptyEnd()
+				&& selected.Position().first == i && selected.Position().second == j) {
+				
+				// "Outer" circle
+				transform[0][0] *= PIECE_WIDTH_FACTOR;
+				transform[1][1] *= PIECE_WIDTH_FACTOR;
+				glm::vec4 color = glm::vec4(0.5f, 0.5f, OUTER_COLOR_FACTOR, 1.0f);
+				circleShader.Run(transform, color);
+
+				// "Inner" circle
+				transform[0][0] *= PIECE_INNER_FACTOR;
+				transform[1][1] *= PIECE_INNER_FACTOR;
+				color = glm::vec4(0.5f, 0.5f, 1.0f, 1.0f);
+				circleShader.Run(transform, color);
+			};
 		}
 	}
-	
 	window.DrawFrame();
-
 }

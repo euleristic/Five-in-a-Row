@@ -1,7 +1,5 @@
 #include "goalFunctionThreadPool.hpp"
 
-#include <iostream>
-
 using namespace Constants;
 
 GoalFunctionThreadPool GoalFunctionThreadPool::instance;
@@ -10,7 +8,8 @@ GoalFunctionThreadPool& GoalFunctionThreadPool::Get() {
 	return instance;
 }
 
-float GoalFunctionSubRange(const Board::FivesIterator& begin, const Board::FivesIterator& end) {
+template <typename FivesIterator>
+float GoalFunctionSubRange(const FivesIterator& begin, const FivesIterator& end) {
 	float sum{};
 	for (auto it = begin; it != end; ++it) {
 		if (const auto score = *it /*;score != 0*/) {
@@ -36,7 +35,7 @@ GoalFunctionThreadPool::GoalFunctionThreadPool() {
 			if (dead) {
 				return;
 			}
-			results[0] = GoalFunctionSubRange(board.FivesBegin<0>(), board.FivesBegin<1>());
+			results[0] = GoalFunctionSubRange(board.HorizontalFivesBegin(), board.HorizontalFivesEnd());
 			complete_signals[0].release();
 		}
 	});
@@ -45,7 +44,7 @@ GoalFunctionThreadPool::GoalFunctionThreadPool() {
 			begin_signals[1].acquire();
 			if (dead)
 				return;
-			results[1] = GoalFunctionSubRange(board.FivesBegin<1>(), board.FivesBegin<2>());
+			results[1] = GoalFunctionSubRange(board.VerticalFivesBegin(), board.VerticalFivesEnd());
 			complete_signals[1].release();
 		}
 	});
@@ -54,7 +53,7 @@ GoalFunctionThreadPool::GoalFunctionThreadPool() {
 			begin_signals[2].acquire();
 			if (dead)
 				return;
-			results[2] = GoalFunctionSubRange(board.FivesBegin<2>(), board.FivesBegin<3>());
+			results[2] = GoalFunctionSubRange(board.SoutheastFivesBegin(), board.SoutheastFivesEnd());
 			complete_signals[2].release();
 		}
 	});
@@ -74,7 +73,7 @@ float GoalFunctionThreadPool::operator()(const Board& board) {
 	for (size_t i = 0; i < 3; ++i) {
 		begin_signals[i].release();
 	}
-	float mainResult = GoalFunctionSubRange(board.FivesBegin<3>(), board.FivesEnd());
+	float mainResult = GoalFunctionSubRange(board.SouthwestFivesBegin(), board.SouthwestFivesEnd());
 	for (size_t i = 0; i < 3; ++i) {
 		complete_signals[i].acquire();
 	}

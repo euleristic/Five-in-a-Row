@@ -10,12 +10,16 @@
 
 using namespace Constants;
 
-// Mouse
+// Input state representation
 
-constexpr uint8_t mouseDownBit = 0b0001;
-constexpr uint8_t mouseClickedBit = 0b0010;
-constexpr uint8_t resetDownBit = 0b0100;
-constexpr uint8_t resetPressedBit = 0b1000;
+constexpr uint8_t mouseDownBit = 1 << 0;
+constexpr uint8_t mouseClickedBit = 1 << 1;
+constexpr uint8_t resetDownBit = 1 << 2;
+constexpr uint8_t resetPressedBit = 1 << 3;
+constexpr uint8_t undoDownBit = 1 << 4;
+constexpr uint8_t undoPressedBit = 1 << 5;
+constexpr uint8_t helpDownBit = 1 << 6;
+constexpr uint8_t helpPressedBit = 1 << 7;
 
 Window::Window() {
 
@@ -45,6 +49,14 @@ bool Window::ShouldClose() const noexcept {
 
 bool Window::ResetPressed() const noexcept {
 	return inputState & resetPressedBit;
+}
+
+bool Window::UndoPressed() const noexcept {
+	return inputState & undoPressedBit;
+}
+
+bool Window::HelpPressed() const noexcept {
+	return inputState & helpPressedBit;
 }
 
 bool Window::Clicked() const noexcept {
@@ -80,6 +92,18 @@ void Window::Update() noexcept {
 		&& (inputState & resetDownBit) == 0) ? resetPressedBit : 0);
 	inputState = (inputState & ~resetDownBit) | ((glfwGetKey(handle, GLFW_KEY_R) == GLFW_PRESS) ?
 		resetDownBit : 0);
+
+	// Undo Button
+	inputState = (inputState & ~undoPressedBit) | ((glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS
+		&& (inputState & undoDownBit) == 0) ? undoPressedBit : 0);
+	inputState = (inputState & ~undoDownBit) | ((glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS) ?
+		undoDownBit : 0);
+
+	// Help Button
+	inputState = (inputState & ~helpPressedBit) | ((glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS
+		&& (inputState & helpDownBit) == 0) ? helpPressedBit : 0);
+	inputState = (inputState & ~helpDownBit) | ((glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS) ?
+		helpDownBit : 0);
 }
 
 void Window::DrawFrame() noexcept {

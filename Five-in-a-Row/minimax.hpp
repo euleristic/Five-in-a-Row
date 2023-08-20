@@ -4,52 +4,19 @@
 
 #pragma once
 
-#include <concepts>
+#include <utility>
 #include <limits>
 
 #include "board.hpp"
 
 // Primary struct declarations
 
-template<size_t depth, bool max, float(*F)(const Board&), 
-	bool prune = false, bool returnChild = false> struct Minimax;
-
-// General case, no pruning
-
-template<size_t depth, bool max, float(*F)(const Board&)>
-struct Minimax<depth, max, F, false, false> {
-	float operator()(const Board& board) const {
-		constexpr Minimax<depth - 1, !max, F> next{};
-		if constexpr (max) {
-			float maxScore = -std::numeric_limits<float>::infinity();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				maxScore = std::max(maxScore, next(board.Play(it, !max)));
-			}
-			return maxScore;
-		}
-		else {
-			float minScore = std::numeric_limits<float>::infinity();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				minScore = std::min(minScore, next(board.Play(it, !max)));
-			}
-			return minScore;
-		}
-	}
-};
-
-// Base case, no prune
-
-template<bool max, float(*F)(const Board&)>
-struct Minimax<0, max, F, false, false> {
-	float operator()(const Board& board) const {
-		return F(board);
-	}
-};
+template<size_t depth, bool max, float(*F)(const Board&), bool returnChild = false> struct Minimax;
 
 // General case, with alpha-beta pruning
 
 template<size_t depth, bool max, float(*F)(const Board&)>
-struct Minimax<depth, max, F, true, false> {
+struct Minimax<depth, max, F, false> {
 	float operator()(const Board& board, 
 		float alpha = -std::numeric_limits<float>::infinity(), 
 		float beta = std::numeric_limits<float>::infinity()) const {
@@ -60,7 +27,7 @@ struct Minimax<depth, max, F, true, false> {
 			return score;
 		}
 
-		constexpr Minimax<depth - 1, !max, F, true> next{};
+		constexpr Minimax<depth - 1, !max, F> next{};
 		if constexpr (max) {
 			float maxScore = -std::numeric_limits<float>::infinity();
 			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
@@ -89,7 +56,7 @@ struct Minimax<depth, max, F, true, false> {
 // Base case, with prune and dummy alpha/beta defaults, since they do nothing
 
 template<bool max, float(*F)(const Board&)>
-struct Minimax<0, max, F, true, false> {
+struct Minimax<0, max, F, false> {
 	float operator()(const Board& board, float alhpa = 0.0f, float beta = 0.0f) const {
 		return F(board);
 	}
@@ -98,7 +65,7 @@ struct Minimax<0, max, F, true, false> {
 // Return child, alpha-beta
 
 template<size_t depth, bool max, float(*F)(const Board&)>
-struct Minimax<depth, max, F, true, true> {
+struct Minimax<depth, max, F, true> {
 	Board::InRangeIterator operator()(const Board& board,
 		float alpha = -std::numeric_limits<float>::infinity(),
 		float beta = std::numeric_limits<float>::infinity()) const {
@@ -142,8 +109,7 @@ struct Minimax<depth, max, F, true, true> {
 			return optimalChild.first;
 		}
 
-		constexpr Minimax<depth - 1, !max, F, true, false> next{}; // Next depth returns float
-
+		constexpr Minimax<depth - 1, !max, F, false> next{}; // Next depth returns float
 
 		if constexpr (max) {
 			float maxScore = -std::numeric_limits<float>::infinity();
@@ -155,6 +121,7 @@ struct Minimax<depth, max, F, true, true> {
 				bestChild = optimalChild.first;
 			}
 			alpha = std::max(alpha, maxScore);
+
 
 			score = next(board.Play(secondOptimalChild.first, !max), alpha, beta);
 			if (score > maxScore) {
@@ -172,6 +139,16 @@ struct Minimax<depth, max, F, true, true> {
 				}
 				alpha = std::max(alpha, maxScore);
 			}
+
+			
+			if constexpr (depth != 2) {
+				// If it's lost no matter what, try to last as long as possible
+				if (maxScore == -std::numeric_limits<float>::infinity()) {
+					 constexpr Minimax<2, !max, F, true> desperateTry{};
+					 return desperateTry(board);
+				}
+			}
+
 			return bestChild;
 		}
 		else {
@@ -201,42 +178,14 @@ struct Minimax<depth, max, F, true, true> {
 				}
 				beta = std::min(beta, minScore);
 			}
-			return bestChild;
-		}
-	}
-};
 
-// Return child, no alpha-beta
-
-template<size_t depth, bool max, float(*F)(const Board&)>
-struct Minimax<depth, max, F, false, true> {
-	Board::InRangeIterator operator()(const Board& board) const {
-
-		static_assert(depth != 0); // There is no iterator to return
-		constexpr Minimax<depth - 1, !max, F, false, false> next{}; // Next depth returns float
-
-		if constexpr (max) {
-			float maxScore = -std::numeric_limits<float>::infinity();
-			auto bestChild = board.InRangeBegin();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				float score = next(board.Play(it, !max));
-				if (score > maxScore) {
-					maxScore = score;
-					bestChild = it;
+			if constexpr (depth != 2) {
+				if (minScore == std::numeric_limits<float>::infinity()) {
+					constexpr Minimax<2, !max, F, true> desperateTry{};
+					return desperateTry(board);
 				}
 			}
-			return bestChild;
-		}
-		else {
-			float minScore = std::numeric_limits<float>::infinity();
-			auto bestChild = board.InRangeBegin();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				float score = next(board.Play(it, !max));
-				if (score < minScore) {
-					minScore = score;
-					bestChild = it;
-				}
-			}
+
 			return bestChild;
 		}
 	}
