@@ -18,7 +18,6 @@
 template<size_t depth, bool max, float(*F)(const Board&), bool returnChild = false> struct Minimax;
 
 
-
 // General depth, partial specialization returning the tree's value (child agnostic)
 template<size_t depth, bool max, float(*F)(const Board&)>
 struct Minimax<depth, max, F, false> {

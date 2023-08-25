@@ -120,4 +120,5 @@ Window::Window(Window&& other) noexcept :
 Window& Window::operator=(Window&& other) noexcept {
 	handle = std::exchange(other.handle, nullptr);
 	inputState = other.inputState;
+	return *this;
 }

@@ -117,8 +117,8 @@ std::optional<size_t> Board::Selected(const std::pair<double, double> cursorPos)
 	const auto y = static_cast<int>(cursorPos.second) / CELL_PIXEL_WIDTH;
 
 	// Is the board space position a cell on the board?
-	if (x < 0 || x >= BOARD_WIDTH ||
-		y < 0 || y >= BOARD_HEIGHT)
+	if (x < 0 || static_cast<size_t>(x) >= BOARD_WIDTH ||
+		y < 0 || static_cast<size_t>(y) >= BOARD_HEIGHT)
 		return {};
 
 	// Is the cell empty?
@@ -179,7 +179,7 @@ std::vector<size_t> Board::InRangePlies() const {
 template <>
 int8_t Board::CountFive<FivesOrientation::HORIZONTAL>(const size_t root) const {
 #ifndef NDEBUG
-	if (std::none_of(HORIZONTAL_FIVES_INDICES.begin(), HORIZONTAL_FIVES_INDICES.end(), [root](size_t i) {
+	if (std::none_of(HORIZONTAL_FIVES_ROOTS.begin(), HORIZONTAL_FIVES_ROOTS.end(), [root](size_t i) {
 		return i == root;
 	})) {
 		throw std::out_of_range("The \"five\" does not exist");
@@ -201,7 +201,7 @@ int8_t Board::CountFive<FivesOrientation::HORIZONTAL>(const size_t root) const {
 template <>
 int8_t Board::CountFive<FivesOrientation::VERTICAL>(const size_t root) const {
 #ifndef NDEBUG
-	if (std::none_of(VERTICAL_FIVES_INDICES.begin(), VERTICAL_FIVES_INDICES.end(), [root](size_t index) {
+	if (std::none_of(VERTICAL_FIVES_ROOTS.begin(), VERTICAL_FIVES_ROOTS.end(), [root](size_t index) {
 		return index == root;
 	})) {
 		throw std::out_of_range("The \"five\" does not exist");
@@ -223,7 +223,7 @@ int8_t Board::CountFive<FivesOrientation::VERTICAL>(const size_t root) const {
 template <>
 int8_t Board::CountFive<FivesOrientation::SOUTHEAST>(const size_t root) const {
 #ifndef NDEBUG
-	if (std::none_of(SOUTHEAST_FIVES_INDICES.begin(), SOUTHEAST_FIVES_INDICES.end(), [root](size_t index) {
+	if (std::none_of(SOUTHEAST_FIVES_ROOTS.begin(), SOUTHEAST_FIVES_ROOTS.end(), [root](size_t index) {
 		return index == root;
 	})) {
 		throw std::out_of_range("The \"five\" does not exist");
@@ -245,7 +245,7 @@ int8_t Board::CountFive<FivesOrientation::SOUTHEAST>(const size_t root) const {
 template <>
 int8_t Board::CountFive<FivesOrientation::SOUTHWEST>(const size_t root) const {
 #ifndef NDEBUG
-	if (std::none_of(SOUTHWEST_FIVES_INDICES.begin(), SOUTHWEST_FIVES_INDICES.end(), [root](size_t index) {
+	if (std::none_of(SOUTHWEST_FIVES_ROOTS.begin(), SOUTHWEST_FIVES_ROOTS.end(), [root](size_t index) {
 		return index == root;
 	})) {
 		throw std::out_of_range("The \"five\" does not exist");

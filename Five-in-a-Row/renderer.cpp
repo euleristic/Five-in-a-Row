@@ -131,4 +131,5 @@ Renderer& Renderer::operator=(Renderer&& other) noexcept {
 	circleShader = std::move(other.circleShader);
 	normalSquareVAO = std::exchange(other.normalSquareVAO, 0);
 	normalSquareVBO = std::exchange(other.normalSquareVBO, 0);
+	return *this;
 }
