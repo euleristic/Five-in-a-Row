@@ -6,187 +6,165 @@
 
 #include <utility>
 #include <limits>
+#include <algorithm>
 
 #include "board.hpp"
 
-// Primary struct declarations
+// Primary struct declaration
 
+// Minimax search with function F
+// if returnChild is true, the best immediate child (position) is returned
+// else, the algorithm is agnostic to which of its children is best, simply returning its value
 template<size_t depth, bool max, float(*F)(const Board&), bool returnChild = false> struct Minimax;
 
-// General case, with alpha-beta pruning
 
+
+// General depth, partial specialization returning the tree's value (child agnostic)
 template<size_t depth, bool max, float(*F)(const Board&)>
 struct Minimax<depth, max, F, false> {
-	float operator()(const Board& board, 
-		float alpha = -std::numeric_limits<float>::infinity(), 
+	float operator()(const Board& board,
+		float alpha = -std::numeric_limits<float>::infinity(),
 		float beta = std::numeric_limits<float>::infinity()) const {
 
-		// If a board is won for either side, we can't keep looking
+		// If the board is won for either side, we cannot keep looking
 		if (auto score = F(board); score == std::numeric_limits<float>::infinity() ||
 			score == -std::numeric_limits<float>::infinity()) {
 			return score;
 		}
 
+		// The minimax of the next depth
 		constexpr Minimax<depth - 1, !max, F> next{};
-		if constexpr (max) {
-			float maxScore = -std::numeric_limits<float>::infinity();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				maxScore = std::max(maxScore, next(board.Play(it, !max), alpha, beta));
-				if (maxScore >= beta) {
-					return maxScore;
+
+		// Initialize bestScore to worst value, updating as we go
+		float bestScore = max ? -std::numeric_limits<float>::infinity() :
+			std::numeric_limits<float>::infinity();
+		
+		// Do we sort the children for this depth?
+		// (To sort, we need to call Board::InRangePlies, which may be wasteful at certain depths
+		// due to the alpha-beta pruning)
+		if constexpr (depth >= Constants::PLY_LOOK_AHEAD - Constants::SORTING_DEPTH) {
+			auto order = board.InRangePlies();
+			std::sort(order.begin(), order.end(), [&](const size_t lhs, const size_t rhs) -> bool {
+				if constexpr (max) {
+					return F(board.Play(lhs, !max)) > F(board.Play(rhs, !max));
 				}
-				alpha = std::max(alpha, maxScore);
+				else {
+					return F(board.Play(lhs, !max)) < F(board.Play(rhs, !max));
+				}
+			});
+			for (size_t ply : order) {
+				if (!board.InRange(ply)) continue;
+				HandleChildValue(next(board.Play(ply, !max), alpha, beta), bestScore, alpha, beta);
+				if constexpr (max) {
+					if (bestScore >= beta)
+						return bestScore;
+				}
+				else if (bestScore <= alpha)
+					return bestScore;
 			}
-			return maxScore;
+			return bestScore;
+		}
+		// No sorting, just iterate through the "in range" children lazily
+		for (size_t ply = 0; ply < Constants::BOARD_SIZE; ++ply) {
+			if (!board.InRange(ply)) continue;
+			HandleChildValue(next(board.Play(ply, !max), alpha, beta), bestScore, alpha, beta);
+			if constexpr (max) {
+				if (bestScore >= beta)
+					return bestScore;
+			}
+			else if (bestScore <= alpha)
+				return bestScore;
+		}
+		return bestScore;
+	}
+private:
+
+	// Handles the result of a child minimax search
+	void HandleChildValue(const float score, float& bestScore, float& alpha, float& beta) const {
+		if constexpr (max) {
+			bestScore = std::max(score, bestScore);
+			alpha = std::max(alpha, bestScore);
 		}
 		else {
-			float minScore = std::numeric_limits<float>::infinity();
-			for (auto it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				minScore = std::min(minScore, next(board.Play(it, !max), alpha, beta));
-				if (minScore <= alpha) {
-					return minScore;
-				}
-				beta = std::min(beta, minScore);
-			}
-			return minScore;
+			bestScore = std::min(score, bestScore);
+			beta = std::min(beta, bestScore);
 		}
 	}
 };
 
-// Base case, with prune and dummy alpha/beta defaults, since they do nothing
 
+// Base case partial specialization
 template<bool max, float(*F)(const Board&)>
 struct Minimax<0, max, F, false> {
-	float operator()(const Board& board, float alhpa = 0.0f, float beta = 0.0f) const {
+	float operator()(const Board& board, float alpha = 0.0f, float beta = 0.0f) const {
+		// Just call the function
 		return F(board);
 	}
 };
 
-// Return child, alpha-beta
 
+// Partial specialization returning best immediate child of tree (value agnostic)
 template<size_t depth, bool max, float(*F)(const Board&)>
 struct Minimax<depth, max, F, true> {
-	Board::InRangeIterator operator()(const Board& board,
+	size_t operator()(const Board& board,
 		float alpha = -std::numeric_limits<float>::infinity(),
 		float beta = std::numeric_limits<float>::infinity()) const {
 
 		static_assert(depth != 0); // There is no iterator to return
-		
-		constexpr float factor = max ? 1.0f : -1.0f;
 
-		std::pair<Board::InRangeIterator, float> optimalChild = std::make_pair(board.InRangeBegin(), 0.0f);
-		std::pair<Board::InRangeIterator, float> secondOptimalChild = std::make_pair(board.InRangeBegin(), 0.0f);
-
-		auto it = board.InRangeBegin();
-		float first = F(board.Play(it, !max)) * factor;
-		++it;
-		if (it == board.InRangeEnd()) {
-			return board.InRangeBegin();
-		}
-		float second = F(board.Play(it, !max)) * factor;
-
-		if (first > second) {
-			optimalChild = std::make_pair(board.InRangeBegin(), first);
-			secondOptimalChild = std::make_pair(it, second);
-		}
-		else {
-			optimalChild = std::make_pair(it, second);
-			secondOptimalChild = std::make_pair(board.InRangeBegin(), first);
-		}
-
-		for (++it; it != board.InRangeEnd(); ++it) {
-			float score = F(board.Play(it, !max)) * factor;
-			if (score > optimalChild.second) {
-				secondOptimalChild = optimalChild;
-				optimalChild = std::make_pair(it, score);
+		// The policy is just to always sort at first depth, because otherwise the result can be strange
+		// (e.g. not finishing the game when it can waste turns and still win later)
+		auto order = board.InRangePlies();
+		std::sort(order.begin(), order.end(), [&](const size_t lhs, const size_t rhs) -> bool {
+			if constexpr (max) {
+				return F(board.Play(lhs, !max)) > F(board.Play(rhs, !max));
 			}
-			else if (score > secondOptimalChild.second) {
-				secondOptimalChild = std::make_pair(it, score);
+			else {
+				return F(board.Play(lhs, !max)) < F(board.Play(rhs, !max));
+			}
+		});
+
+		constexpr Minimax<depth - 1, !max, F, false> next{}; // Next depth is child-agnostic
+
+		float bestScore = max ? -std::numeric_limits<float>::infinity() :
+			std::numeric_limits<float>::infinity();
+		auto bestChild = order.front(); // First born favoritism
+
+		// Search the children
+		for (const auto ply : order) {
+			HandleChildValue(ply, next(board.Play(ply, !max), alpha, beta),
+				bestChild, bestScore, alpha, beta);
+		}
+
+		// If it's lost to a perfect player no matter what,
+		// try to atleast survive the next move (no strange giving up-behavior)
+		if constexpr (depth != 2) {
+			if ((max && bestScore == -std::numeric_limits<float>::infinity()) ||
+				(!max && bestScore == std::numeric_limits<float>::infinity())) {
+				constexpr Minimax<2, !max, F, true> desperateTry{};
+				return desperateTry(board);
 			}
 		}
 
-		if (optimalChild.second == std::numeric_limits<float>::infinity() * factor) {
-			return optimalChild.first;
-		}
-
-		constexpr Minimax<depth - 1, !max, F, false> next{}; // Next depth returns float
-
+		return bestChild;
+	}
+private:
+	// Handle minimax search of child, retaining the knowledge of which child is best
+	void HandleChildValue(const size_t child, const float score,
+		size_t& bestChild, float& bestScore, float& alpha, float& beta) const {
 		if constexpr (max) {
-			float maxScore = -std::numeric_limits<float>::infinity();
-			auto bestChild = board.InRangeBegin(); // First born favoritism
-
-			float score = next(board.Play(optimalChild.first, !max), alpha, beta);
-			if (score > maxScore) {
-				maxScore = score;
-				bestChild = optimalChild.first;
+			if (score > bestScore) {
+				bestScore = score;
+				bestChild = child;
 			}
-			alpha = std::max(alpha, maxScore);
-
-
-			score = next(board.Play(secondOptimalChild.first, !max), alpha, beta);
-			if (score > maxScore) {
-				maxScore = score;
-				bestChild = secondOptimalChild.first;
-			}
-			alpha = std::max(alpha, maxScore);
-
-			for (it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				if (it == optimalChild.first || it == secondOptimalChild.first) continue;
-				score = next(board.Play(it, !max), alpha, beta);
-				if (score > maxScore) {
-					maxScore = score;
-					bestChild = it;
-				}
-				alpha = std::max(alpha, maxScore);
-			}
-
-			
-			if constexpr (depth != 2) {
-				// If it's lost no matter what, try to last as long as possible
-				if (maxScore == -std::numeric_limits<float>::infinity()) {
-					 constexpr Minimax<2, !max, F, true> desperateTry{};
-					 return desperateTry(board);
-				}
-			}
-
-			return bestChild;
+			alpha = std::max(alpha, bestScore);
 		}
 		else {
-			float minScore = std::numeric_limits<float>::infinity();
-			auto bestChild = board.InRangeBegin();
-
-			float score = next(board.Play(optimalChild.first, !max), alpha, beta);
-			if (score < minScore) {
-				minScore = score;
-				bestChild = optimalChild.first;
+			if (score < bestScore) {
+				bestScore = score;
+				bestChild = child;
 			}
-			beta = std::min(beta, minScore);
-
-			score = next(board.Play(secondOptimalChild.first, !max), alpha, beta);
-			if (score < minScore) {
-				minScore = score;
-				bestChild = secondOptimalChild.first;
-			}
-			beta = std::min(beta, minScore);
-
-			for (it = board.InRangeBegin(); it != board.InRangeEnd(); ++it) {
-				if (it == optimalChild.first || it == secondOptimalChild.first) continue;
-				float score = next(board.Play(it, !max), alpha, beta);
-				if (score < minScore) {
-					minScore = score;
-					bestChild = it;
-				}
-				beta = std::min(beta, minScore);
-			}
-
-			if constexpr (depth != 2) {
-				if (minScore == std::numeric_limits<float>::infinity()) {
-					constexpr Minimax<2, !max, F, true> desperateTry{};
-					return desperateTry(board);
-				}
-			}
-
-			return bestChild;
+			beta = std::min(beta, bestScore);
 		}
 	}
 };

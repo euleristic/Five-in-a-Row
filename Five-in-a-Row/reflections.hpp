@@ -1,4 +1,5 @@
-// This header contains constant expression reflections of error codes, since the C++ standard does not yet have it
+// This header contains compile time reflections of error codes, 
+// since the C++ standard does not yet have it :/
 
 #pragma once
 

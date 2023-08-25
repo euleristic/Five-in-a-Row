@@ -6,6 +6,7 @@
 #include <fstream>
 #include <format>
 
+// A utility for loading the file at path into the returned string
 std::string ReadFile(const std::filesystem::path path) {
 	std::ifstream file(path);
 	if (!file.is_open()) {
@@ -16,6 +17,7 @@ std::string ReadFile(const std::filesystem::path path) {
 	return stream.str();
 }
 
+// A shader class to simplify the code, which is hidden from the user of ShaderProgram
 class Shader {
 public:
 	Shader(const GLenum type, const std::filesystem::path path) {
@@ -39,14 +41,26 @@ public:
 	}
 
 	~Shader() noexcept {
-		if (id)
-			glDeleteShader(id);
+		// A moved from shader will be ignored
+		glDeleteShader(id);
 	};
+
+	Shader(Shader&& other) noexcept :
+		id(std::exchange(other.id, 0)) {}
+
+
+	Shader& operator=(Shader&& other) noexcept {
+		id = std::exchange(other.id, 0);
+		return *this;
+	}
 
 	GLuint getID() const {
 		return id;
 	}
 
+	// Shader cannot be copied
+	Shader(const Shader&) = delete;
+	Shader& operator=(const Shader& other) = delete;
 private:
 	GLuint id;
 };
@@ -56,7 +70,7 @@ ShaderProgram::ShaderProgram() noexcept : id{}, transformUniform{}, colorUniform
 ShaderProgram::ShaderProgram(std::filesystem::path vertexShaderPath, std::filesystem::path fragmentShaderPath) {
 	Shader vertexShader(GL_VERTEX_SHADER, vertexShaderPath);
 	Shader fragmentShader(GL_FRAGMENT_SHADER, fragmentShaderPath);
-	const auto fragmentShaderSource = ReadFile(vertexShaderPath);
+	//const auto fragmentShaderSource = ReadFile(vertexShaderPath);
 
 	id = glCreateProgram();
 	glAttachShader(id, vertexShader.getID());
@@ -70,7 +84,6 @@ ShaderProgram::ShaderProgram(std::filesystem::path vertexShaderPath, std::filesy
 		glGetProgramInfoLog(id, 512, nullptr, infoLog);
 		throw std::runtime_error(std::format("Could not link shader: {}", infoLog));
 	}
-
 
 	transformUniform = glGetUniformLocation(id, "transformUniform");
 	colorUniform = glGetUniformLocation(id, "colorUniform");
@@ -90,8 +103,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& from) noexcept {
 }
 
 ShaderProgram::~ShaderProgram() noexcept {
-	if (id)
-		glDeleteProgram(id);
+	glDeleteProgram(id);
 }
 
 void ShaderProgram::Run(const glm::mat3 transform, const glm::vec4 color) {

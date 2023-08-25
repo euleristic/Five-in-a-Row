@@ -23,14 +23,4 @@ namespace Microsoft::VisualStudio::CppUnitTestFramework {
 	static std::wstring ToString<std::pair<size_t, size_t>>(const std::pair<size_t, size_t>& pair) {
 		return std::format(L"({}, {})", pair.first, pair.second);
 	}
-
-	template <>
-	static std::wstring ToString<Board::EmptyIterator>(const Board::EmptyIterator& it) {
-		return ToString(it.Position());
-	}
-
-	template <>
-	static std::wstring ToString<Board::InRangeIterator>(const Board::InRangeIterator& it) {
-		return ToString(it.Position());
-	}
 }

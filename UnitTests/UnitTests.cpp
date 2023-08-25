@@ -7,6 +7,8 @@ using namespace Constants;
 
 // Returns 1.0f if red won, -1.0f if blue, and 0.0f if neither has won.
 float SimpleGoal(const Board&);
+
+// An allowed error, for floating point comparisons
 constexpr float EPSILON = 0.1f;
 
 namespace UnitTests {
@@ -118,37 +120,8 @@ namespace UnitTests {
 			//Assert::ExpectException<std::runtime_error>([&b]() { b.At(10, 15); });
 		}
 
-		TEST_METHOD(BoardAllIterator) {
-			Board b(std::string() +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***********B***" +
-				"*******R*******" +
-				"*B*************" +
-				"***************" +
-				"***********R***" +
-				"***************" +
-				"***************" +
-				"***************" +
-				"***************");
-
-			for (auto it = b.AllBegin(); it != b.AllEnd(); ++it) {
-				const auto [x, y] = it.Position();
-				CellState expected = CellState::EMPTY;
-				if (x == 11 && y == 6) Assert::AreEqual(CellState::BLUE, *it, std::format(L"x = {}, y = {}", x, y).c_str());
-				else if (x == 7 && y == 7) Assert::AreEqual(CellState::RED, *it, std::format(L"x = {}, y = {}", x, y).c_str());
-				else if (x == 1 && y == 8) Assert::AreEqual(CellState::BLUE, *it, std::format(L"x = {}, y = {}", x, y).c_str());
-				else if (x == 11 && y == 10) Assert::AreEqual(CellState::RED, *it, std::format(L"x = {}, y = {}", x, y).c_str());
-				else Assert::AreEqual(CellState::EMPTY, *it, std::format(L"x = {}, y = {}", x, y).c_str());
-			}
-		}
-
-		TEST_METHOD(BoardEmptyIterator) {
-			Board b(std::string() +
+		TEST_METHOD(BoardFullAndEmpty) {
+			Board neither(std::string() +
 				"B**************" +
 				"***************" +
 				"***************" +
@@ -156,129 +129,123 @@ namespace UnitTests {
 				"***************" +
 				"***************" +
 				"***********B***" +
-				"*******R*******" +
-				"*B*************" +
-				"***************" +
-				"***********R***" +
+				"**********R****" +
 				"***************" +
 				"***************" +
 				"***************" +
+				"***************" +
+				"***************" +
+				"***R***********" +
 				"***************");
 
-			const auto [x, y] = b.EmptyBegin().Position();
-			Assert::AreEqual(static_cast<size_t>(1), x);
-			Assert::AreEqual(static_cast<size_t>(0), y);
-
-			size_t count{};
-			for (auto it = b.EmptyBegin(); it != b.EmptyEnd(); ++it) {
-				Assert::AreEqual(CellState::EMPTY, *it, std::format(L"x = {}, y = {}", it.Position().first, it.Position().second).c_str());
-				++count;
-			}
-			Assert::AreEqual(count, static_cast<size_t>(220));
-
 			Board full(std::string() +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB" +
-				"BBBBBBBBBBBBBBB");
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB" +
+				"RBRBRBRBRBRBRBR" +
+				"BRBRBRBRBRBRBRB");
 
-			Assert::AreEqual(full.EmptyBegin(), full.EmptyEnd());
+			Assert::IsTrue(Board().Empty());
+			Assert::IsFalse(Board().Full());
+			Assert::IsFalse(neither.Empty());
+			Assert::IsFalse(neither.Full());
+			Assert::IsFalse(full.Empty());
+			Assert::IsTrue(full.Full());
 
-			Assert::AreEqual(static_cast<size_t>(0), Board().EmptyBegin().Position().first);
+
+
 		}
-
-		TEST_METHOD(BoardInRangeIterator) {
-			if constexpr (RANGE == 4) {
-
+		TEST_METHOD(BoardInRangePlies) {
+			if constexpr (RANGE == 1)
+			{
 				Board b(std::string() +
-					"B**************" +			//B    **********		    4
-					"***************" +			//     **********			5		  
-					"***************" +			//     **        			5 + 8
-					"***************" +			//     *         			5 + 9
-					"***************" +			//     *         			5 + 9			 
-					"***************" +			//******         			9			 
-					"***********B***" +			//******     B   			8
-					"**********R****" +			//******    R    			8
-					"***************" +			//******         			9
-					"***************" +			//               			15
-					"***************" +			//               			15
-					"***************" +			//               			15
-					"***************" +			//        *******			8
-					"***R***********" +			//   R    *******			7
-					"***************");			//        *******			8
+					"B**************" +			//B *************		    1
+					"***************" +			//  *************			2		  
+					"***************" +			//*************** 			0
+					"***************" +			//*************** 			0
+					"***************" +			//*************** 			0			 
+					"***************" +			//**********   **			3			 
+					"***********B***" +			//*********  B **  			3
+					"**********R****" +			//********* R  **  			3
+					"***************" +			//*********   ***  			3
+					"***************" +			//***************			0
+					"***************" +			//***************			0
+					"***************" +			//***************			0
+					"***************" +			//**   **********			3
+					"***R***********" +			//** R **********			2
+					"***************");			//**   **********			3
 
 				size_t count{};
 
 				size_t counts[15]{};
 
-				for (auto it = b.InRangeBegin(); it != b.InRangeEnd(); ++it) {
+				auto plies = b.InRangePlies();
+
+				for (auto ply : plies) {
 					++count;
-					Assert::AreEqual(CellState::EMPTY, *it);
-					const auto [x, y] = it.Position();
+					Assert::AreEqual(CellState::EMPTY, b.At(ply));
+					const auto x = ply % BOARD_WIDTH;
+					const auto y = ply / BOARD_WIDTH;
 					++counts[y];
 
 					switch (y) {
 					case 0:
-						Assert::IsTrue(x != 0 && x <= 4, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(x == 1, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 1:
-						Assert::IsTrue(x <= 4, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(x <= 1, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
-					case 2:
-						Assert::IsTrue(x <= 4 || 7 <= x, std::format(L"x = {}, y = {}", x, y).c_str());
-						break;
-					case 3: case 4:
-						Assert::IsTrue(x <= 4 || 6 <= x, std::format(L"x = {}, y = {}", x, y).c_str());
+					case 2: case 3: case 4:
+						Assert::IsTrue(false, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 5:
-						Assert::IsTrue(6 <= x, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(10 <= x && x <= 12, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 6:
-						Assert::IsTrue(6 <= x && x != 11, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(x == 9 || x == 10 || x == 12, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 7:
-						Assert::IsTrue(6 <= x && x != 10, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(x == 9 || x == 11 || x == 12, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 8:
-						Assert::IsTrue(6 <= x, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(9 <= x && x <= 11, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
-					case 12:
-						Assert::IsTrue(x <= 8, std::format(L"x = {}, y = {}", x, y).c_str());
+					case 9: case 10: case 11:
+						Assert::IsTrue(false, std::format(L"x = {}, y = {}", x, y).c_str());
+						break;
+					case 12: case 14:
+						Assert::IsTrue(2 <= x && x <= 4, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					case 13:
-						Assert::IsTrue(x != 3 && x <= 8, std::format(L"x = {}, y = {}", x, y).c_str());
-						break;
-					case 14:
-						Assert::IsTrue(x <= 8, std::format(L"x = {}, y = {}", x, y).c_str());
+						Assert::IsTrue(x == 2 || x == 4, std::format(L"x = {}, y = {}", x, y).c_str());
 						break;
 					}
 				}
-				Assert::AreEqual(static_cast<size_t>(4), counts[0], L"y = 0");
-				Assert::AreEqual(static_cast<size_t>(5), counts[1], L"y = 1");
-				Assert::AreEqual(static_cast<size_t>(13), counts[2], L"y = 2");
-				Assert::AreEqual(static_cast<size_t>(14), counts[3], L"y = 3");
-				Assert::AreEqual(static_cast<size_t>(14), counts[4], L"y = 4");
-				Assert::AreEqual(static_cast<size_t>(9), counts[5], L"y = 5");
-				Assert::AreEqual(static_cast<size_t>(8), counts[6], L"y = 6");
-				Assert::AreEqual(static_cast<size_t>(8), counts[7], L"y = 7");
-				Assert::AreEqual(static_cast<size_t>(9), counts[8], L"y = 8");
-				Assert::AreEqual(static_cast<size_t>(15), counts[9], L"y = 9");
-				Assert::AreEqual(static_cast<size_t>(15), counts[10], L"y = 10");
-				Assert::AreEqual(static_cast<size_t>(15), counts[11], L"y = 11");
-				Assert::AreEqual(static_cast<size_t>(8), counts[12], L"y = 12");
-				Assert::AreEqual(static_cast<size_t>(7), counts[13], L"y = 13");
-				Assert::AreEqual(static_cast<size_t>(8), counts[14], L"y = 14");
+				Assert::AreEqual(static_cast<size_t>(1), counts[0], L"y = 0");
+				Assert::AreEqual(static_cast<size_t>(2), counts[1], L"y = 1");
+				Assert::AreEqual(static_cast<size_t>(0), counts[2], L"y = 2");
+				Assert::AreEqual(static_cast<size_t>(0), counts[3], L"y = 3");
+				Assert::AreEqual(static_cast<size_t>(0), counts[4], L"y = 4");
+				Assert::AreEqual(static_cast<size_t>(3), counts[5], L"y = 5");
+				Assert::AreEqual(static_cast<size_t>(3), counts[6], L"y = 6");
+				Assert::AreEqual(static_cast<size_t>(3), counts[7], L"y = 7");
+				Assert::AreEqual(static_cast<size_t>(3), counts[8], L"y = 8");
+				Assert::AreEqual(static_cast<size_t>(0), counts[9], L"y = 9");
+				Assert::AreEqual(static_cast<size_t>(0), counts[10], L"y = 10");
+				Assert::AreEqual(static_cast<size_t>(0), counts[11], L"y = 11");
+				Assert::AreEqual(static_cast<size_t>(3), counts[12], L"y = 12");
+				Assert::AreEqual(static_cast<size_t>(2), counts[13], L"y = 13");
+				Assert::AreEqual(static_cast<size_t>(3), counts[14], L"y = 14");
 			}
 
 			Board full(std::string() +
@@ -298,10 +265,7 @@ namespace UnitTests {
 				"BBBBBBBBBBBBBBB" +
 				"BBBBBBBBBBBBBBB");
 
-			Assert::AreEqual(full.InRangeBegin(), full.InRangeEnd());
-
-			Assert::AreEqual(std::make_pair(BOARD_WIDTH / 2, BOARD_HEIGHT / 2), 
-				Board().InRangeBegin().Position());
+			Assert::AreEqual(static_cast<size_t>(0), full.InRangePlies().size());
 		}
 
 		TEST_METHOD(BoardPlay) {
@@ -332,14 +296,15 @@ namespace UnitTests {
 
 			size_t pos{};
 
-			for (auto it = b2.EmptyBegin(); it != b2.EmptyEnd(); ++it, ++pos) {
-				Board b3 = b2.Play(it, pos % 2);
-				Assert::AreEqual((pos % 2) ? CellState::BLUE : CellState::RED, b3.At(it.Position()));
-				Assert::AreEqual(CellState::EMPTY, b2.At(it.Position()));
+			for (size_t i = 0; i < BOARD_SIZE; ++i) {
+				if (b2.At(i) != CellState::EMPTY) continue;
+				Board b3 = b2.Play(i, pos % 2);
+				Assert::AreEqual((pos % 2) ? CellState::BLUE : CellState::RED, b3.At(i));
+				Assert::AreEqual(CellState::EMPTY, b2.At(i));
 			}
 		}
 
-		TEST_METHOD(BoardFivesIterator) {
+		TEST_METHOD(FivesArrays) {
 			// Test 1 piece
 			{
 				Board b(std::string() +
@@ -359,16 +324,42 @@ namespace UnitTests {
 					"***************" +
 					"***************");
 
-				size_t totalCount{};
-				size_t ones{};
+				size_t totalHorizontalCount{};
+				size_t horizontalOnes{};
+				size_t totalVerticalCount{};
+				size_t verticalOnes{};
+				size_t totalSoutheastCount{};
+				size_t southeastOnes{};
+				size_t totalSouthwestCount{};
+				size_t southwestOnes{};
 
-				for (auto it = b.FivesBegin(); it != b.FivesEnd(); ++it) {
-					++totalCount;
-					if (*it == 1) ++ones;
+				for (auto root : HORIZONTAL_FIVES_ROOTS) {
+					++totalHorizontalCount;
+					if (b.CountFive<FivesOrientation::HORIZONTAL>(root) == 1) ++horizontalOnes;
+				}
+				for (auto root : VERTICAL_FIVES_ROOTS) {
+					++totalVerticalCount;
+					if (b.CountFive<FivesOrientation::VERTICAL>(root) == 1) ++verticalOnes;
+				}
+				for (auto root : SOUTHEAST_FIVES_ROOTS) {
+					++totalSoutheastCount;
+					if (b.CountFive<FivesOrientation::SOUTHEAST>(root) == 1) ++southeastOnes;
+				}
+				for (auto root : SOUTHWEST_FIVES_ROOTS) {
+					++totalSouthwestCount;
+					if (b.CountFive<FivesOrientation::SOUTHWEST>(root) == 1) ++southwestOnes;
 				}
 
-				Assert::AreEqual(static_cast<size_t>(5 * 4), ones, L"ones");
-				Assert::AreEqual(static_cast<size_t>(15 * 11 * 2 + 11 * 11 * 2), totalCount, L"totalCount");
+				Assert::AreEqual(static_cast<size_t>(5), horizontalOnes, L"horizontalOnes");
+				Assert::AreEqual(static_cast<size_t>(15 * 11), totalHorizontalCount, L"totalHorizontalCount");
+				Assert::AreEqual(static_cast<size_t>(5), verticalOnes, L"verticalOnes");
+				Assert::AreEqual(static_cast<size_t>(15 * 11), totalVerticalCount, L"totalVerticalCount");
+				Assert::AreEqual(static_cast<size_t>(5), southeastOnes, L"southeastOnes");
+				Assert::AreEqual(static_cast<size_t>(11 * 11), totalSoutheastCount, L"totalSoutheastCount");
+				Assert::AreEqual(static_cast<size_t>(5), southwestOnes, L"southwestOnes");
+				Assert::AreEqual(static_cast<size_t>(11 * 11), totalSouthwestCount, L"totalSouthwestCount");
+
+
 			}
 			// Test triangle
 			{
@@ -391,9 +382,19 @@ namespace UnitTests {
 
 				size_t minusTwos{};
 
-				for (auto it = b.FivesBegin(); it != b.FivesEnd(); ++it) {
-					if (*it == -2) ++minusTwos;
+				for (auto root : HORIZONTAL_FIVES_ROOTS) {
+					if (b.CountFive<FivesOrientation::HORIZONTAL>(root) == -2) ++minusTwos;
 				}
+				for (auto root : VERTICAL_FIVES_ROOTS) {
+					if (b.CountFive<FivesOrientation::VERTICAL>(root) == -2) ++minusTwos;
+				}
+				for (auto root : SOUTHEAST_FIVES_ROOTS) {
+					if (b.CountFive<FivesOrientation::SOUTHEAST>(root) == -2) ++minusTwos;
+				}
+				for (auto root : SOUTHWEST_FIVES_ROOTS) {
+					if (b.CountFive<FivesOrientation::SOUTHWEST>(root) == -2) ++minusTwos;
+				}
+
 
 				Assert::AreEqual(static_cast<size_t>(3 * 4 - 1), minusTwos, L"minusTwos");
 			}
@@ -425,8 +426,8 @@ namespace UnitTests {
 				size_t minusFoursCount{};
 				size_t minusFivesCount{};
 
-				for (auto it = b.FivesBegin(); it != b.FivesEnd(); ++it) {
-					switch (*it) {
+				auto countUp = [&](const auto count) {
+					switch (count) {
 					case 5:
 						++fivesCount;
 						break;
@@ -452,6 +453,19 @@ namespace UnitTests {
 						++minusFivesCount;
 						break;
 					}
+				};
+
+				for (auto root : HORIZONTAL_FIVES_ROOTS) {
+					countUp(b.CountFive<FivesOrientation::HORIZONTAL>(root));
+				}
+				for (auto root : VERTICAL_FIVES_ROOTS) {
+					countUp(b.CountFive<FivesOrientation::VERTICAL>(root));
+				}
+				for (auto root : SOUTHEAST_FIVES_ROOTS) {
+					countUp(b.CountFive<FivesOrientation::SOUTHEAST>(root));
+				}
+				for (auto root : SOUTHWEST_FIVES_ROOTS) {
+					countUp(b.CountFive<FivesOrientation::SOUTHWEST>(root));
 				}
 
 				Assert::AreEqual(static_cast<size_t>(1), fivesCount, L"fivesCount");
@@ -625,10 +639,7 @@ namespace UnitTests {
 		}
 
 		TEST_METHOD(ChildReturningMinimax) {
-			
-			// We'll test minimax and alpha-beta for simple cases, at depth 1, 
-			// and alpha-beta again for the three in a row test
-			
+
 			Board redWinsInOne(std::string() +
 				"R**************" +
 				"*R*************" +
@@ -648,13 +659,13 @@ namespace UnitTests {
 
 			constexpr Minimax<1, true, SimpleGoal, true> Test0{};
 			constexpr Minimax<1, true, SimpleGoal, true> Test1{};
-			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test0(redWinsInOne).Position(), L"Test0");
-			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test1(redWinsInOne).Position(), L"Test1");
+			Assert::AreEqual(4 * BOARD_WIDTH + 4, Test0(redWinsInOne), L"Test0");
+			Assert::AreEqual(4 * BOARD_WIDTH + 4, Test1(redWinsInOne), L"Test1");
 
 			constexpr Minimax<2, false, SimpleGoal, true> Test2{};
 			constexpr Minimax<2, false, SimpleGoal, true> Test3{};
-			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test2(redWinsInOne).Position(), L"Test2");
-			Assert::AreEqual(std::make_pair<size_t, size_t>(4, 4), Test3(redWinsInOne).Position(), L"Test3");
+			Assert::AreEqual(4 * BOARD_WIDTH + 4, Test2(redWinsInOne), L"Test2");
+			Assert::AreEqual(4 * BOARD_WIDTH + 4, Test3(redWinsInOne), L"Test3");
 
 			Board threeRsInARow(std::string() +
 				"***************" +
@@ -675,8 +686,8 @@ namespace UnitTests {
 
 			constexpr Minimax<3, true, SimpleGoal, true> Test4{};
 			auto result = Test4(threeRsInARow);
-			Assert::IsTrue(std::make_pair<size_t, size_t>(4, 13) == result.Position() ||
-				std::make_pair<size_t, size_t>(8, 9) == result.Position(),
+			Assert::IsTrue(13 * BOARD_WIDTH + 4 == result ||
+				9 * BOARD_WIDTH + 8 == result,
 				L"Test4: Red should see a win");
 		}
 
@@ -739,8 +750,8 @@ namespace UnitTests {
 			float expected = 40 * SCORE_MAP[0] +
 				3 * SCORE_MAP[1] +
 				132 * -SCORE_MAP[0] +
-				11 * -SCORE_MAP[1] + 
-				3 * -SCORE_MAP[2] + 
+				11 * -SCORE_MAP[1] +
+				3 * -SCORE_MAP[2] +
 				4 * -SCORE_MAP[3];
 			Assert::IsTrue(fabsf(expected - actual) < EPSILON, std::format(L"Expected: <{}>. Actual: <{}>", expected, actual).c_str());
 		}
@@ -797,14 +808,14 @@ namespace UnitTests {
 				"***************" +
 				"***************");
 
-			constexpr Minimax<4, true, GoalFunction, true> Goal{};
-			Assert::AreEqual(std::make_pair<size_t, size_t>(3, 4), Goal(b1).Position(), L"Test: Red should block.");
+			constexpr Minimax<PLY_LOOK_AHEAD, true, GoalFunction, true> Goal{};
+			Assert::AreEqual(4 * BOARD_WIDTH + 3, Goal(b1), L"Test: Red should block.");
 			Assert::IsTrue(b2.Play(Goal(b2), false).RedWin(), L"Test: Red should win.");
-			Assert::AreEqual(std::make_pair<size_t, size_t>(12, 4), Goal(b3).Position(), L"Test: Red should block.");
+			Assert::AreEqual(4 * BOARD_WIDTH + 12, Goal(b3), L"Test: Red should block.");
 		}
 
 		TEST_METHOD(ZZZDestructor) {
-			// Please tell me how to do this better
+			// Tell me there's a better way
 			GoalFunctionThreadPool::Kill();
 		}
 	};

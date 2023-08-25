@@ -1,5 +1,4 @@
-// This header contains the Renderer class declaration.
-// Renderer provides an interface to the application window and its drawing.
+// This header defines the Renderer class, which renders a board to a window
 
 #pragma once
 
@@ -11,12 +10,18 @@ class Board;
 class Renderer {
 
 public:
-	// Window width, height and title are specified in constants.hpp
 	Renderer();
 	~Renderer() noexcept;
 
+	// Draws the board to the window argument. If drawSelected, a ghost piece is drawn
+	// at cursor's selected cell, if existent. If lastPly has a value, the cell is darkened slightly,
+	// (indicating this cell was the one that was just played on)
 	void Draw(Window& window, const Board& board, const bool drawSelected, 
-		const std::optional<std::pair<size_t, size_t>> lastMove);
+		const std::optional<size_t> lastPly);
+
+	// Renderer move is not trivial, it manages resources
+	Renderer(Renderer&& other) noexcept;
+	Renderer& operator=(Renderer&& other) noexcept;
 
 	// Renderer cannot be copied
 	Renderer(const Renderer&) = delete;

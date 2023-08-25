@@ -21,6 +21,11 @@ constexpr uint8_t undoPressedBit = 1 << 5;
 constexpr uint8_t helpDownBit = 1 << 6;
 constexpr uint8_t helpPressedBit = 1 << 7;
 
+// Returns the result of setting the mask bit(s) of byte to value
+uint8_t SetByte(const uint8_t byte, const uint8_t mask, const bool value) {
+	return (byte & ~mask) | (value ? mask : 0);
+}
+
 Window::Window() {
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -43,23 +48,23 @@ Window::~Window() noexcept {
 	}
 }
 
-bool Window::ShouldClose() const noexcept {
+bool Window::ShouldClose() const {
 	return glfwWindowShouldClose(handle);
 }
 
-bool Window::ResetPressed() const noexcept {
+bool Window::ResetPressed() const {
 	return inputState & resetPressedBit;
 }
 
-bool Window::UndoPressed() const noexcept {
+bool Window::UndoPressed() const {
 	return inputState & undoPressedBit;
 }
 
-bool Window::HelpPressed() const noexcept {
+bool Window::HelpPressed() const {
 	return inputState & helpPressedBit;
 }
 
-bool Window::Clicked() const noexcept {
+bool Window::Clicked() const {
 	return inputState & mouseClickedBit;
 }
 
@@ -75,37 +80,44 @@ std::pair<double, double> Window::CursorPosition() const {
 	return std::make_pair(x, y);
 }
 
-void Window::Update() noexcept {
+void Window::Update() {
 	glfwPollEvents();
 
-	// Update input state (it's a bit convoluded, but basically we only want clicked-/pressedBit to be set for only one tick)
-	// (And we want to conserve memory, so it's only a byte)
+	// Update input state
+	// We only want Clicked() to be true for the frame that the mouse button was released,
+	// and the various pressed-predicates to return true the frame the key was initially pressed
 
 	// Mouse
-	inputState = (inputState & ~mouseClickedBit) | ((glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE
-		&& (inputState & mouseDownBit) != 0) ? mouseClickedBit : 0);
-	inputState = (inputState & ~mouseDownBit) | ((glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) ?
-		mouseDownBit : 0);
+	inputState = SetByte(inputState, mouseClickedBit, glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE 
+		&& (inputState & mouseDownBit));
+	inputState = SetByte(inputState, mouseDownBit, 
+		glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS);
 
 	// Reset Button
-	inputState = (inputState & ~resetPressedBit) | ((glfwGetKey(handle, GLFW_KEY_R) == GLFW_PRESS
-		&& (inputState & resetDownBit) == 0) ? resetPressedBit : 0);
-	inputState = (inputState & ~resetDownBit) | ((glfwGetKey(handle, GLFW_KEY_R) == GLFW_PRESS) ?
-		resetDownBit : 0);
+	inputState = SetByte(inputState, resetPressedBit,glfwGetKey(handle, GLFW_KEY_R) == GLFW_PRESS 
+		&& !(inputState & resetDownBit));
+	inputState = SetByte(inputState, resetDownBit, glfwGetKey(handle, GLFW_KEY_R) == GLFW_PRESS);
 
 	// Undo Button
-	inputState = (inputState & ~undoPressedBit) | ((glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS
-		&& (inputState & undoDownBit) == 0) ? undoPressedBit : 0);
-	inputState = (inputState & ~undoDownBit) | ((glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS) ?
-		undoDownBit : 0);
+	inputState = SetByte(inputState, undoPressedBit,
+		glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS && !(inputState & undoDownBit));
+	inputState = SetByte(inputState, undoDownBit, glfwGetKey(handle, GLFW_KEY_Z) == GLFW_PRESS);
 
 	// Help Button
-	inputState = (inputState & ~helpPressedBit) | ((glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS
-		&& (inputState & helpDownBit) == 0) ? helpPressedBit : 0);
-	inputState = (inputState & ~helpDownBit) | ((glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS) ?
-		helpDownBit : 0);
+	inputState = SetByte(inputState, helpPressedBit, glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS
+		&& !(inputState & helpDownBit));
+	inputState = SetByte(inputState, helpDownBit, glfwGetKey(handle, GLFW_KEY_H) == GLFW_PRESS);
 }
 
-void Window::DrawFrame() noexcept {
+void Window::DrawFrame() {
 	glfwSwapBuffers(handle);
+}
+
+Window::Window(Window&& other) noexcept :
+	handle(std::exchange(other.handle, nullptr)),
+	inputState(other.inputState) {}
+
+Window& Window::operator=(Window&& other) noexcept {
+	handle = std::exchange(other.handle, nullptr);
+	inputState = other.inputState;
 }

@@ -32,26 +32,33 @@ Renderer::Renderer() {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(NORMAL_SQUARE_VERTEX_BUFFER), NORMAL_SQUARE_VERTEX_BUFFER, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * sizeof(float), reinterpret_cast<void*>(0));
 
-	// We'll leave these bound for the entirety of the application, since it's the only ones we'll use
+	// We'll leave the objects bound for the entirety of the application, since they're the only ones we'll use
 
+	// We need alpha blending for the circle drawing
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 Renderer::~Renderer() noexcept {
+	// If this is moved from, OpenGL will simply ignore these
 	glDeleteBuffers(1, &normalSquareVBO);
 	glDeleteVertexArrays(1, &normalSquareVAO);
 }
 
 void Renderer::Draw(Window& window, const Board& board, const bool drawSelected,
-	const std::optional<std::pair<size_t, size_t>> lastMove) {
+	const std::optional<size_t> lastPly) {
+	
+	// Clear the buffer
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	auto selected = board.Selected(window.CursorPosition());
 
+	// Iterate through the cells of the board and draw each one
 	for (size_t j = 0; j < BOARD_HEIGHT; ++j) {
 		for (size_t i = 0; i < BOARD_WIDTH; ++i) {
+
+			// First we setup the transform for the cell
 			glm::mat3 transform(0.0f);
 			transform[0][0] = static_cast<float>(CELL_WIDTH_FACTOR) / static_cast<float>(BOARD_WIDTH);
 			transform[1][1] = static_cast<float>(CELL_WIDTH_FACTOR) / static_cast<float>(BOARD_HEIGHT);
@@ -60,49 +67,68 @@ void Renderer::Draw(Window& window, const Board& board, const bool drawSelected,
 			transform[2][0] = -1.0f + // left edge
 				1.0f / static_cast<float>(BOARD_WIDTH) + // initial offset
 				static_cast<float>(i) * 2.0f / static_cast<float>(BOARD_WIDTH); // additional offset per i
-			
+
 			transform[2][1] = 1.0f - // top edge
 				1.0f / static_cast<float>(BOARD_HEIGHT) - // initial offset
 				static_cast<float>(j) * 2.0f / static_cast<float>(BOARD_HEIGHT); // additional offset per j
 
-			const auto color = (lastMove && lastMove->first == i && lastMove->second == j) ?
+			// Determine the color to draw the cell
+			const auto rectColor = (lastPly && *lastPly % BOARD_WIDTH == i
+				&& *lastPly / BOARD_WIDTH == j) ?
 				glm::vec4(0.8f, 0.8f, 0.8f, 1.0f) : glm::vec4(1.0f);
 
-			rectShader.Run(transform, color);
-			
+			// Render it
+			rectShader.Run(transform, rectColor);
+
+			// Do we draw a piece?
 			if (auto state = board.At(i, j); state != CellState::EMPTY) {
 
 				// "Outer" circle
 				transform[0][0] *= PIECE_WIDTH_FACTOR;
 				transform[1][1] *= PIECE_WIDTH_FACTOR;
-				glm::vec4 color = state == CellState::BLUE ? glm::vec4(0.0f, 0.0f, OUTER_COLOR_FACTOR, 1.0f)
+				const auto innerColor = state == CellState::BLUE ? glm::vec4(0.0f, 0.0f, OUTER_COLOR_FACTOR, 1.0f)
 					: glm::vec4(OUTER_COLOR_FACTOR, 0.0f, 0.0f, 1.0f);
-				circleShader.Run(transform, color);
+				circleShader.Run(transform, innerColor);
 
 				// "Inner" circle
 				transform[0][0] *= PIECE_INNER_FACTOR;
 				transform[1][1] *= PIECE_INNER_FACTOR;
-				color = state == CellState::BLUE ? glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)
+				const auto outerColor = state == CellState::BLUE ? glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)
 					: glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-				circleShader.Run(transform, color);
+				circleShader.Run(transform, outerColor);
 
 			}
-			else if (drawSelected && selected != board.EmptyEnd()
-				&& selected.Position().first == i && selected.Position().second == j) {
-				
+			// Do we draw a ghost piece?
+			else if (drawSelected && selected && *selected % BOARD_WIDTH == i &&
+				*selected / BOARD_WIDTH == j) {
+
 				// "Outer" circle
 				transform[0][0] *= PIECE_WIDTH_FACTOR;
 				transform[1][1] *= PIECE_WIDTH_FACTOR;
-				glm::vec4 color = glm::vec4(0.5f, 0.5f, OUTER_COLOR_FACTOR, 1.0f);
-				circleShader.Run(transform, color);
+				const auto outerColor = glm::vec4(0.5f, 0.5f, OUTER_COLOR_FACTOR, 1.0f);
+				circleShader.Run(transform, outerColor);
 
 				// "Inner" circle
 				transform[0][0] *= PIECE_INNER_FACTOR;
 				transform[1][1] *= PIECE_INNER_FACTOR;
-				color = glm::vec4(0.5f, 0.5f, 1.0f, 1.0f);
-				circleShader.Run(transform, color);
+				const auto innerColor = glm::vec4(0.5f, 0.5f, 1.0f, 1.0f);
+				circleShader.Run(transform, innerColor);
 			};
 		}
 	}
+	// Swap the buffers
 	window.DrawFrame();
+}
+
+Renderer::Renderer(Renderer&& other) noexcept :
+	rectShader(std::move(other.rectShader)),
+	circleShader(std::move(other.circleShader)),
+	normalSquareVAO(std::exchange(other.normalSquareVAO, 0)),
+	normalSquareVBO(std::exchange(other.normalSquareVBO, 0)) {}
+
+Renderer& Renderer::operator=(Renderer&& other) noexcept {
+	rectShader = std::move(other.rectShader);
+	circleShader = std::move(other.circleShader);
+	normalSquareVAO = std::exchange(other.normalSquareVAO, 0);
+	normalSquareVBO = std::exchange(other.normalSquareVBO, 0);
 }
