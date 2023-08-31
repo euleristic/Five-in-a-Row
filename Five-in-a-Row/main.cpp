@@ -71,31 +71,7 @@ auto main() -> int {
 							computer(board, true);
 						}
 
-						// Has the player requested to reset the board?
-						if (window.ResetPressed()) {
-							// No threads left behind
-							if (computer.Running()) {
-								computer.Await();
-							}
-							board = Board{};
-							gameOver = false;
-							playerFirst = !playerFirst;
-							playerTurn = playerFirst;
-							plies = {};
-							window.SetTitle((std::string(Constants::APPLICATION_NAME) + (playerTurn ?
-								Constants::PLAYER_TURN_SUFFIX : Constants::COMPUTER_TURN_SUFFIX)).c_str());
-						}
-
-						// Has the player requested to undo the top move?
-						if (plies.size() > 1 && window.UndoPressed()) {
-							board = board.Reset(plies.top());
-							plies.pop();
-							board = board.Reset(plies.top());
-							plies.pop();
-							gameOver = false;
-							window.SetTitle((std::string(Constants::APPLICATION_NAME) + (playerTurn ?
-								Constants::PLAYER_TURN_SUFFIX : Constants::COMPUTER_TURN_SUFFIX)).c_str());
-						}
+						
 					}
 					else {
 						// It's the computer's turn, notify it to begin computation
@@ -116,6 +92,32 @@ auto main() -> int {
 					gameOver = true;
 					window.SetTitle((std::string(Constants::APPLICATION_NAME) + Constants::DRAW_SUFFIX).c_str());
 				}
+			}
+
+			// Has the player requested to reset the board?
+			if (window.ResetPressed() && !computer.Running()) {
+				// No threads left behind
+				if (computer.Running()) {
+					computer.Await();
+				}
+				board = Board{};
+				gameOver = false;
+				playerFirst = !playerFirst;
+				playerTurn = playerFirst;
+				plies = {};
+				window.SetTitle((std::string(Constants::APPLICATION_NAME) + (playerTurn ?
+					Constants::PLAYER_TURN_SUFFIX : Constants::COMPUTER_TURN_SUFFIX)).c_str());
+			}
+
+			// Has the player requested to undo the top move?
+			if (plies.size() > 1 && window.UndoPressed() && !computer.Running()) {
+				board = board.Reset(plies.top());
+				plies.pop();
+				board = board.Reset(plies.top());
+				plies.pop();
+				gameOver = false;
+				window.SetTitle((std::string(Constants::APPLICATION_NAME) + (playerTurn ?
+					Constants::PLAYER_TURN_SUFFIX : Constants::COMPUTER_TURN_SUFFIX)).c_str());
 			}
 
 			// Poll window and update input state

@@ -7,8 +7,6 @@
 #include <vector>
 #include <array>
 
-// First, some types
-
 namespace Constants {
 
 	// CONFIGURATION CONSTANTS (play with these)
@@ -16,8 +14,8 @@ namespace Constants {
 	// General
 
 	constexpr bool PLAYER_FIRST = true;
-	constexpr size_t BOARD_WIDTH = 15;			static_assert(BOARD_WIDTH >= 15);
-	constexpr size_t BOARD_HEIGHT = 15;			static_assert(BOARD_HEIGHT >= 15);
+	constexpr size_t BOARD_WIDTH = 15;			static_assert(BOARD_WIDTH >= 5);
+	constexpr size_t BOARD_HEIGHT = 15;			static_assert(BOARD_HEIGHT >= 5);
 	constexpr int CELL_PIXEL_WIDTH = 50;		static_assert(CELL_PIXEL_WIDTH > 0);
 	constexpr float CELL_WIDTH_FACTOR = 0.95f;	static_assert(0.0f < CELL_WIDTH_FACTOR && CELL_WIDTH_FACTOR < 1.0f);
 

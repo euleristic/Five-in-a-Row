@@ -52,7 +52,6 @@ struct Minimax<depth, max, F, false> {
 				}
 			});
 			for (size_t ply : order) {
-				if (!board.InRange(ply)) continue;
 				HandleChildValue(next(board.Play(ply, !max), alpha, beta), bestScore, alpha, beta);
 				if constexpr (max) {
 					if (bestScore >= beta)
@@ -109,7 +108,7 @@ struct Minimax<depth, max, F, true> {
 		float alpha = -std::numeric_limits<float>::infinity(),
 		float beta = std::numeric_limits<float>::infinity()) const {
 
-		static_assert(depth != 0); // There is no iterator to return
+		static_assert(depth != 0); // There is no child to return
 
 		// The policy is just to always sort at first depth, because otherwise the result can be strange
 		// (e.g. not finishing the game when it can waste turns and still win later)

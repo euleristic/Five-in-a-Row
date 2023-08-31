@@ -1,4 +1,3 @@
-
 #include "board.hpp"
 
 #include <stdexcept>
@@ -124,7 +123,6 @@ std::optional<size_t> Board::Selected(const std::pair<double, double> cursorPos)
 	// Is the cell empty?
 	for (size_t j = 0; j < BOARD_HEIGHT; ++j) {
 		for (size_t i = 0; i < BOARD_WIDTH; ++i) {
-			// We know that x and y are positive, so they can be casted to size_t
 			if (At(i, j) == CellState::EMPTY &&
 				i == static_cast<size_t>(x) &&
 				j == static_cast<size_t>(y)) {
