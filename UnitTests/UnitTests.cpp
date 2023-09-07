@@ -814,8 +814,7 @@ namespace UnitTests {
 			Assert::AreEqual(4 * BOARD_WIDTH + 12, Goal(b3), L"Test: Red should block.");
 		}
 
-		TEST_METHOD(ZZZDestructor) {
-			// Tell me there's a better way
+		TEST_CLASS_CLEANUP(KillThreads) {
 			GoalFunctionThreadPool::Kill();
 		}
 	};
